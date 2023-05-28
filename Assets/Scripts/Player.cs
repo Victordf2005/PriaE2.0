@@ -12,6 +12,9 @@ namespace PlayerNS
         public NetworkVariable<int> team = new NetworkVariable<int>();
 
         public List<Material> materials = new List<Material>();
+
+        private const RigidbodyConstraints RIGIDBODY_QUIET = RigidbodyConstraints.FreezeAll;
+        private const RigidbodyConstraints RIGIDBODY_MOVING = RigidbodyConstraints.FreezeRotation | RigidbodyConstraints.FreezePositionY;
                 
         private float movingDistance = 0.5f;
         private bool canMove = true;
@@ -21,6 +24,8 @@ namespace PlayerNS
         private int[,] teamsMaterialsIndex;
 
         private PlayerManager playerManager;
+
+        private Rigidbody rigidBody;
 
         // ======================================================================================================================= client methods
 
@@ -58,6 +63,7 @@ namespace PlayerNS
         public override void OnNetworkSpawn() {
             base.OnNetworkSpawn();
             team.OnValueChanged += ChangedTeamServerRpc;
+            rigidBody = GetComponent<Rigidbody>();
         }
 
         public void MoveToOrigin() {
@@ -88,6 +94,8 @@ namespace PlayerNS
         void SubmitPositionServerRpc(float moveLeftRight, float moveBackForward, ServerRpcParams serverRpcParams = default){
 
             Vector3 newPosition = new Vector3(transform.position.x + moveLeftRight, transform.position.y, transform.position.z + moveBackForward);
+
+            rigidBody.constraints = RIGIDBODY_MOVING;
 
             if (newPosition.x < playerManager.GameBoardLimitRight && newPosition.x > playerManager.GameBoardLimitLeft
               && newPosition.z < playerManager.GameBoardLimitForward && newPosition.z > playerManager.GameBoardLimitBackward ){
@@ -120,6 +128,8 @@ namespace PlayerNS
                     }
                 }
               }
+
+              rigidBody.constraints = RIGIDBODY_QUIET;
         } 
 
         
@@ -141,6 +151,11 @@ Debug.Log($">>>>>>>> {oldTeam} -> {newTeam}");
 
             choosedColor.Value = Random.Range(teamsMaterialsIndex[newTeam,0], teamsMaterialsIndex[newTeam,1]);
 
+        }
+
+        [ServerRpc]
+        void ChangedPositionServerRpc(Vector3 oldPosition, Vector3 newPosition) {
+            Debug.Log(">>>>>>>>>>>> posicion cambiada");
         }
         
         
