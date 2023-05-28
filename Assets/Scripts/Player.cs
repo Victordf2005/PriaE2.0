@@ -10,11 +10,14 @@ namespace PlayerNS
 
         public NetworkVariable<int> choosedColor = new NetworkVariable<int>();
         public NetworkVariable<int> team = new NetworkVariable<int>();
+        public NetworkVariable<bool> canMove = new NetworkVariable<bool>();
+        public NetworkVariable<ulong> clientId = new NetworkVariable<ulong>();
 
         public List<Material> materials = new List<Material>();
-        
+                
         private float movingDistance = 0.5f;
-        private bool canMove = true;
+
+        private int[,] teamsMaterialsIndex;
 
         private PlayerManager playerManager;
 
@@ -22,23 +25,32 @@ namespace PlayerNS
 
         void Awake() {
             playerManager = GameObject.Find("PlayerManager").GetComponent<PlayerManager>();
+            teamsMaterialsIndex = new int[,] {{0, 0}, {1, 3}, {4, 6}};
 
         }
 
+        public override void OnNetworkSpawn() {
+            
+            if (IsOwner) {
+                base.OnNetworkSpawn();
+                team.OnValueChanged += ChangedTeam;
+            }
+        }
+        
         void Start() {
             if (IsOwner) {
-                SubmitInitialPositionRequestServerRpc();
-                SubmitSetDefaultValuesServerRpc();
+                SubmitSetInitialDataServerRpc();
             }
         }
 
         void Update()
         {
             if (IsOwner) {
-                if (canMove && (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.A)))   SubmitPositionServerRpc(- movingDistance, 0);
-                if (canMove && (Input.GetKeyDown(KeyCode.RightArrow) || Input.GetKeyDown(KeyCode.D)))  SubmitPositionServerRpc(movingDistance, 0);
-                if (canMove && (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.W)))     SubmitPositionServerRpc(0, movingDistance);
-                if (canMove && (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.S)))   SubmitPositionServerRpc(0, - movingDistance);
+            
+                if (canMove.Value && (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.A)))   SubmitPositionServerRpc(- movingDistance, 0);
+                if (canMove.Value && (Input.GetKeyDown(KeyCode.RightArrow) || Input.GetKeyDown(KeyCode.D)))  SubmitPositionServerRpc(movingDistance, 0);
+                if (canMove.Value && (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.W)))     SubmitPositionServerRpc(0, movingDistance);
+                if (canMove.Value && (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.S)))   SubmitPositionServerRpc(0, - movingDistance);
 
                 if (Input.GetKeyDown(KeyCode.M)) MoveToOrigin();
             }
@@ -47,100 +59,125 @@ namespace PlayerNS
         }
 
         public override void OnNetworkDespawn() {
-            //TODO
-            // Notificar ao server para eliminar o xogador do equipo, se o ten.
+            playerManager.RemoveMember(team.Value, clientId.Value);
+        }
+
+
+        private void ChangedTeam(int oldTeam, int newTeam) {
+            ChangedTeamServerRpc(oldTeam, newTeam);
         }
 
         public void MoveToOrigin() {
-            if (canMove) {
-                SubmitInitialPositionRequestServerRpc();
-            } else {
-                Debug.Log("Non se pode mover");
+
+            if (canMove.Value) {
+                SubmitSetInitialDataServerRpc();
             }
+
         }
 
         // ======================================================================================================================= ClientRPC
 
+
         [ClientRpc]
         public void CanMoveClientRpc(bool move, ClientRpcParams clientRpcParams = default) {
-            canMove = move;
+
+            SubmitChangeMoveLockServerRpc(move);
+
         }
 
         // ======================================================================================================================= ServerRPC
 
         [ServerRpc]
-        void SubmitSetDefaultValuesServerRpc() {
+        void SubmitSetInitialDataServerRpc(ServerRpcParams serverRpcParams = default) {
+            
+            transform.position = new Vector3(Random.Range(playerManager.noTeamLimitLeft, playerManager.noTeamLimitRight), 1f, Random.Range(playerManager.GameBoardLimitLeft, playerManager.GameBoardLimitRight));            
+            clientId.Value = serverRpcParams.Receive.SenderClientId;
             team.Value = 0;
-        }
 
-        [ServerRpc]
-        void SubmitInitialPositionRequestServerRpc() {
-            transform.position = new Vector3(Random.Range(-3f, 3f), 1f, Random.Range(-9f, 9f));
-            team.Value = 0;
+            canMove.Value = (playerManager.membersTeam1.Count < playerManager.maxPlayerPerTeam.Value && playerManager.membersTeam2.Count < playerManager.maxPlayerPerTeam.Value);
+
+            Rigidbody rb = GetComponent<Rigidbody>();
+            rb.constraints = RigidbodyConstraints.FreezeAll;
+
         }
 
         [ServerRpc]
         void SubmitPositionServerRpc(float moveLeftRight, float moveBackForward, ServerRpcParams serverRpcParams = default){
 
+            // Permitimos o movemento en horizontal (eixo X e Y)
+            Rigidbody rb = GetComponent<Rigidbody>();
+            rb.constraints = RigidbodyConstraints.FreezeRotation | RigidbodyConstraints.FreezePositionY;
+
+            // Calculamos a nova posicion
             Vector3 newPosition = new Vector3(transform.position.x + moveLeftRight, transform.position.y, transform.position.z + moveBackForward);
 
-            if (newPosition.x < 9f && newPosition.x >-9f && newPosition.z < 9f && newPosition.z > -9f ){
+            // Comprobamos se esta dentro dos limites do taboleiro
+            if (newPosition.x < playerManager.GameBoardLimitRight && newPosition.x > playerManager.GameBoardLimitLeft
+              && newPosition.z < playerManager.GameBoardLimitForward && newPosition.z > playerManager.GameBoardLimitBackward ){
 
-            var clientId = serverRpcParams.Receive.SenderClientId;
+                if (newPosition.x <= playerManager.noTeamLimitLeft) {
 
-
-                if (newPosition.x <= -3f) {
+                    // Quere moverse ao equipo 1.
+                    // Comprobamos se xa esta no equipo ou se pode incorporarse
 
                     if (team.Value == 1)  {
 
                         transform.position = newPosition;
                     } else if (playerManager.membersTeam1.Count < playerManager.maxPlayerPerTeam.Value)  {
+
                         transform.position = newPosition;
                         team.Value = 1;
-                        playerManager.AddMember(team.Value, clientId);
-                        SubmitChangeColorServerRpc(team.Value);
                     }
-                } else if (newPosition.x >= 3f) {
+                } else if (newPosition.x >= playerManager.noTeamLimitRight) {
+
+                    // Quere moverse ao equipo 2.
+                    // Comprobamos se xa esta no equipo ou se pode incorporarse
+
                     if (team.Value == 2)  {
                         transform.position = newPosition;
                     } else if (playerManager.membersTeam2.Count < playerManager.maxPlayerPerTeam.Value)  {
                         
                         transform.position = newPosition;
                         team.Value = 2;
-                        playerManager.AddMember(team.Value, clientId);
-                        SubmitChangeColorServerRpc(team.Value);
                     }
-                } else if (newPosition.x >= -3f && newPosition.x <= 3f) {
+                } else if (newPosition.x >= playerManager.noTeamLimitLeft && newPosition.x <= playerManager.noTeamLimitRight) {
+
+                    // Comprobamos se a nova posicion esta na zona centrao (sen equipo)
                     
                     transform.position = newPosition;
                     if (team.Value > 0) {
-                        
-                        playerManager.RemoveMember(team.Value, clientId);
                         team.Value = 0;
-                        SubmitChangeColorServerRpc(team.Value);
                     }
                 }
-            }
-        }
+            }                
+
+            // bloqueamos todos os movementos e rotacions
+            rb.constraints = RigidbodyConstraints.FreezeAll;
+        } 
 
         
         [ServerRpc]
         void SubmitChangeColorServerRpc(int team){
 
-Debug.Log(">>>>> Cambia cor");
-            switch (team) {
-                case 1:
-                    choosedColor.Value = Random.Range(1, 3);
-                    break;
-                case 2:                
-                    choosedColor.Value = Random.Range(4, 6);
-                    break;
-                default:
-                    choosedColor.Value = 0;
-                    break;
-            }
+            choosedColor.Value = Random.Range(teamsMaterialsIndex[team,0], teamsMaterialsIndex[team,1]);
+
         }
-        
+
+        [ServerRpc]
+        void ChangedTeamServerRpc(int oldTeam, int newTeam) {
+
+            if (oldTeam > 0) playerManager.RemoveMember(oldTeam, clientId.Value);
+
+            if (newTeam > 0) playerManager.AddMember(newTeam, clientId.Value);
+
+            choosedColor.Value = Random.Range(teamsMaterialsIndex[newTeam,0], teamsMaterialsIndex[newTeam,1]);
+
+        }
+
+        [ServerRpc]
+        void SubmitChangeMoveLockServerRpc(bool move) {
+            canMove.Value = move;
+        }
         
     }
 }
