@@ -16,6 +16,8 @@ namespace PlayerNS
         private float movingDistance = 0.5f;
         private bool canMove = true;
 
+        private ulong clientId;
+
         private int[,] teamsMaterialsIndex;
 
         private PlayerManager playerManager;
@@ -30,7 +32,7 @@ namespace PlayerNS
 
         void Start() {
             if (IsOwner) {
-                SubmitInitialPositionRequestServerRpc();
+                SubmitSetInitialDataServerRpc();
             }
         }
 
@@ -53,9 +55,14 @@ namespace PlayerNS
             // Notificar ao server para eliminar o xogador do equipo, se o ten.
         }
 
+        public override void OnNetworkSpawn() {
+            base.OnNetworkSpawn();
+            team.OnValueChanged += ChangedTeamServerRpc;
+        }
+
         public void MoveToOrigin() {
             if (canMove) {
-                SubmitInitialPositionRequestServerRpc();
+                SubmitSetInitialDataServerRpc();
             } else {
                 Debug.Log("Non se pode mover");
             }
@@ -71,14 +78,10 @@ namespace PlayerNS
         // ======================================================================================================================= ServerRPC
 
         [ServerRpc]
-        void SubmitSetDefaultValuesServerRpc() {
+        void SubmitSetInitialDataServerRpc(ServerRpcParams serverRpcParams = default) {
+            transform.position = new Vector3(Random.Range(playerManager.noTeamLimitLeft, playerManager.noTeamLimitRight), 1f, Random.Range(playerManager.GameBoardLimitLeft, playerManager.GameBoardLimitRight));            
+            clientId = serverRpcParams.Receive.SenderClientId;
             team.Value = 0;
-            SubmitChangeColorServerRpc(team.Value);
-        }
-
-        [ServerRpc]
-        void SubmitInitialPositionRequestServerRpc() {
-            transform.position = new Vector3(Random.Range(playerManager.noTeamLimitLeft, playerManager.noTeamLimitRight), 1f, Random.Range(playerManager.GameBoardLimitLeft, playerManager.GameBoardLimitRight));
         }
 
         [ServerRpc]
@@ -89,7 +92,7 @@ namespace PlayerNS
             if (newPosition.x < playerManager.GameBoardLimitRight && newPosition.x > playerManager.GameBoardLimitLeft
               && newPosition.z < playerManager.GameBoardLimitForward && newPosition.z > playerManager.GameBoardLimitBackward ){
 
-            var clientId = serverRpcParams.Receive.SenderClientId;
+                clientId = serverRpcParams.Receive.SenderClientId;
 
                 if (newPosition.x <= playerManager.noTeamLimitLeft) {
 
@@ -99,8 +102,6 @@ namespace PlayerNS
                     } else if (playerManager.membersTeam1.Count < playerManager.maxPlayerPerTeam.Value)  {
                         transform.position = newPosition;
                         team.Value = 1;
-                        playerManager.AddMember(team.Value, clientId);
-                        SubmitChangeColorServerRpc(team.Value);
                     }
                 } else if (newPosition.x >= playerManager.noTeamLimitRight) {
 
@@ -110,17 +111,12 @@ namespace PlayerNS
                         
                         transform.position = newPosition;
                         team.Value = 2;
-                        playerManager.AddMember(team.Value, clientId);
-                        SubmitChangeColorServerRpc(team.Value);
                     }
                 } else if (newPosition.x >= playerManager.noTeamLimitLeft && newPosition.x <= playerManager.noTeamLimitRight) {
                     
                     transform.position = newPosition;
                     if (team.Value > 0) {
-                        
-                        playerManager.RemoveMember(team.Value, clientId);
                         team.Value = 0;
-                        SubmitChangeColorServerRpc(team.Value);
                     }
                 }
               }
@@ -131,6 +127,19 @@ namespace PlayerNS
         void SubmitChangeColorServerRpc(int team){
 
             choosedColor.Value = Random.Range(teamsMaterialsIndex[team,0], teamsMaterialsIndex[team,1]);
+
+        }
+
+        [ServerRpc]
+        void ChangedTeamServerRpc(int oldTeam, int newTeam) {
+
+Debug.Log($">>>>>>>> {oldTeam} -> {newTeam}");
+
+            if (oldTeam > 0) playerManager.RemoveMember(oldTeam, clientId);
+
+            if (newTeam > 0) playerManager.AddMember(newTeam, clientId);
+
+            choosedColor.Value = Random.Range(teamsMaterialsIndex[newTeam,0], teamsMaterialsIndex[newTeam,1]);
 
         }
         

@@ -82,34 +82,39 @@ namespace PlayerNS
         public void AddMember(int team, ulong clientId) {
 
             if (team == 1) {
-                membersTeam1.Add(clientId);
-                if (membersTeam1.Count >= maxPlayerPerTeam.Value) {
-                    foreach (ulong id in NetworkManager.Singleton.ConnectedClientsIds) {
-                        if ( ! membersTeam1.Contains(id)){
-                            clientRpcParams = new ClientRpcParams {
-                                    Send = new ClientRpcSendParams {
-                                        TargetClientIds = new ulong[]{id}
-                                    }
-                                };
-                                // chamada a clientRpc
-                            p = NetworkManager.Singleton.ConnectedClientsList[(int) id].PlayerObject.GetComponent<Player>();
-                            p.CanMoveClientRpc(false, clientRpcParams);
+
+                if ( ! membersTeam1.Contains(clientId)) {
+                    membersTeam1.Add(clientId);
+                    if (membersTeam1.Count >= maxPlayerPerTeam.Value) {
+                        foreach (ulong id in NetworkManager.Singleton.ConnectedClientsIds) {
+                            if ( ! membersTeam1.Contains(id)){
+                                clientRpcParams = new ClientRpcParams {
+                                        Send = new ClientRpcSendParams {
+                                            TargetClientIds = new ulong[]{id}
+                                        }
+                                    };
+                                    // chamada a clientRpc
+                                p = NetworkManager.Singleton.ConnectedClientsList[(int) id].PlayerObject.GetComponent<Player>();
+                                p.CanMoveClientRpc(false, clientRpcParams);
+                            }
                         }
                     }
                 }
             } else if (team == 2) {
-                membersTeam2.Add(clientId);
-                if (membersTeam2.Count >= maxPlayerPerTeam.Value) {
-                    foreach(ulong id in NetworkManager.Singleton.ConnectedClientsIds) {
-                        if ( ! membersTeam2.Contains(id)){
-                            clientRpcParams = new ClientRpcParams {
-                                    Send = new ClientRpcSendParams {
-                                        TargetClientIds = new ulong[]{id}
-                                    }
-                                };
-                                // chamada a clientRpc
-                            p = NetworkManager.Singleton.ConnectedClientsList[(int) id].PlayerObject.GetComponent<Player>();
-                            p.CanMoveClientRpc(false, clientRpcParams);
+                if ( ! membersTeam2.Contains(clientId)) {
+                    membersTeam2.Add(clientId);
+                    if (membersTeam2.Count >= maxPlayerPerTeam.Value) {
+                        foreach(ulong id in NetworkManager.Singleton.ConnectedClientsIds) {
+                            if ( ! membersTeam2.Contains(id)){
+                                clientRpcParams = new ClientRpcParams {
+                                        Send = new ClientRpcSendParams {
+                                            TargetClientIds = new ulong[]{id}
+                                        }
+                                    };
+                                    // chamada a clientRpc
+                                p = NetworkManager.Singleton.ConnectedClientsList[(int) id].PlayerObject.GetComponent<Player>();
+                                p.CanMoveClientRpc(false, clientRpcParams);
+                            }
                         }
                     }
                 }
