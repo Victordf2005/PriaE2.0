@@ -16,7 +16,7 @@ GameObject:
   - component: {fileID: 3699119293083224945}
   - component: {fileID: -848491840877893171}
   - component: {fileID: 7338897269907974150}
-  - component: {fileID: 3615526359114994501}
+  - component: {fileID: 6115087921803497463}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -155,8 +155,6 @@ MonoBehaviour:
   - {fileID: 2100000, guid: db5ed9fc8af495445ad00f6d21d13a28, type: 2}
   - {fileID: 2100000, guid: ed37ad23d55422f4f861c40a1c101d08, type: 2}
   - {fileID: 2100000, guid: 50349af53b4fc0843a429275aeaccc9d, type: 2}
-  movingDistance:
-    m_InternalValue: 0
 --- !u!114 &7338897269907974150
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -183,7 +181,7 @@ MonoBehaviour:
   ScaleThreshold: 0.01
   InLocalSpace: 0
   Interpolate: 1
---- !u!54 &3615526359114994501
+--- !u!54 &6115087921803497463
 Rigidbody:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -198,4 +196,4 @@ Rigidbody:
   m_IsKinematic: 0
   m_Interpolate: 0
   m_Constraints: 112
-  m_CollisionDetection: 0
+  m_CollisionDetection: 1

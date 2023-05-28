@@ -12,14 +12,27 @@ namespace PlayerNS
 
         public NetworkVariable<int> maxPlayerPerTeam = new NetworkVariable<int>();
         
+        // Declaramos obxectos para os limites do taboleiro e dos equipos
+        private float[] gameBoardLimits;
+        private float[] noTeamLimits;
+        public float GameBoardLimitLeft { get {return gameBoardLimits[0];}}
+        public float GameBoardLimitRight { get {return gameBoardLimits[1];}}
+        public float GameBoardLimitBackward { get {return gameBoardLimits[2];}}
+        public float GameBoardLimitForward { get {return gameBoardLimits[3];}}
+        public float noTeamLimitLeft {get {return noTeamLimits[0];}}
+        public float noTeamLimitRight {get {return noTeamLimits[1];}}
+        
         private ClientRpcParams clientRpcParams;
         
         private Player p;
 
         void Awake() {
+            // Establecemos os limites do taboleiro e da franxa dos equipos
             membersTeam1 = new NetworkList<ulong>();
             membersTeam2 = new NetworkList<ulong>();
             maxPlayerPerTeam.Value = 2;
+            gameBoardLimits = new float[] {-9, 9, -9, 9};
+            noTeamLimits = new float[] {-3, 3};
         }
         
 
@@ -67,51 +80,71 @@ namespace PlayerNS
             }
         }
 
+        // Metodo para engadir un xogador a un equipo
         public void AddMember(int team, ulong clientId) {
 
             if (team == 1) {
-                membersTeam1.Add(clientId);
-                if (membersTeam1.Count >= maxPlayerPerTeam.Value) {
-                    foreach (ulong id in NetworkManager.Singleton.ConnectedClientsIds) {
-                        if ( ! membersTeam1.Contains(id)){
-                            clientRpcParams = new ClientRpcParams {
-                                    Send = new ClientRpcSendParams {
-                                        TargetClientIds = new ulong[]{id}
-                                    }
-                                };
-                                // chamada a clientRpc
-                            p = NetworkManager.Singleton.ConnectedClientsList[(int) id].PlayerObject.GetComponent<Player>();
-                            p.CanMoveClientRpc(false, clientRpcParams);
+
+                if ( ! membersTeam1.Contains(clientId)) {
+
+                    membersTeam1.Add(clientId);
+
+                    // Se acadamos o maximo de xogadores permitido por equipo
+                    // bloqueamos a todos os xogadores agas aos deste equipo
+                    if (membersTeam1.Count >= maxPlayerPerTeam.Value) {
+                        foreach (ulong id in NetworkManager.Singleton.ConnectedClientsIds) {
+                            if ( ! membersTeam1.Contains(id)){
+                                clientRpcParams = new ClientRpcParams {
+                                        Send = new ClientRpcSendParams {
+                                            TargetClientIds = new ulong[]{id}
+                                        }
+                                    };
+                                    // chamada a clientRpc
+                                p = NetworkManager.Singleton.ConnectedClientsList[(int) id].PlayerObject.GetComponent<Player>();
+                                p.CanMoveClientRpc(false, clientRpcParams);
+                            }
                         }
                     }
                 }
+
             } else if (team == 2) {
-                membersTeam2.Add(clientId);
-                if (membersTeam2.Count >= maxPlayerPerTeam.Value) {
-                    foreach(ulong id in NetworkManager.Singleton.ConnectedClientsIds) {
-                        if ( ! membersTeam2.Contains(id)){
-                            clientRpcParams = new ClientRpcParams {
-                                    Send = new ClientRpcSendParams {
-                                        TargetClientIds = new ulong[]{id}
-                                    }
-                                };
-                                // chamada a clientRpc
-                            p = NetworkManager.Singleton.ConnectedClientsList[(int) id].PlayerObject.GetComponent<Player>();
-                            p.CanMoveClientRpc(false, clientRpcParams);
+
+                if ( ! membersTeam2.Contains(clientId)) {
+
+                    membersTeam2.Add(clientId);
+
+                    // Se acadamos o maximo de xogadores permitido por equipo
+                    // bloqueamos a todos os xogadores agas aos deste equipo
+                    if (membersTeam2.Count >= maxPlayerPerTeam.Value) {
+                        foreach(ulong id in NetworkManager.Singleton.ConnectedClientsIds) {
+                            if ( ! membersTeam2.Contains(id)){
+                                clientRpcParams = new ClientRpcParams {
+                                        Send = new ClientRpcSendParams {
+                                            TargetClientIds = new ulong[]{id}
+                                        }
+                                    };
+                                    // chamada a clientRpc
+                                p = NetworkManager.Singleton.ConnectedClientsList[(int) id].PlayerObject.GetComponent<Player>();
+                                p.CanMoveClientRpc(false, clientRpcParams);
+                            }
                         }
                     }
                 }
             }
 
-
-
-Debug.Log(">>>> Membros: " + membersTeam1.Count + " - " + membersTeam2.Count);
         }
 
+        // Metodo para eliminar a un xogador dun equipo
         public void RemoveMember(int team, ulong clientId) {
+
             if (team == 1) {
+
                 membersTeam1.Remove(clientId);                
-                if (membersTeam1.Count < maxPlayerPerTeam.Value) { 
+
+                // Se baixamos do maximo de xogadores permitido por equipo
+                // desbloqueamos a todos os xogadores
+                if (membersTeam1.Count < maxPlayerPerTeam.Value) {
+
                     // Desbloqueamos todos
                     foreach(ulong id in NetworkManager.Singleton.ConnectedClientsIds) {
                             clientRpcParams = new ClientRpcParams {
@@ -126,7 +159,11 @@ Debug.Log(">>>> Membros: " + membersTeam1.Count + " - " + membersTeam2.Count);
                 }
 
             } else if (team == 2) {
-                membersTeam2.Remove(clientId);
+                
+                membersTeam2.Remove(clientId);            
+
+                // Se baixamos do maximo de xogadores permitido por equipo
+                // desbloqueamos a todos os xogadores
                 if (membersTeam2.Count < maxPlayerPerTeam.Value) {  
                     // Desbloqueamos todos 
                     foreach(ulong id in NetworkManager.Singleton.ConnectedClientsIds) {
@@ -141,7 +178,6 @@ Debug.Log(">>>> Membros: " + membersTeam1.Count + " - " + membersTeam2.Count);
                     }
                 }
             }
-Debug.Log(">>>> Membros: " + membersTeam1.Count + " - " + membersTeam2.Count);
         }
     }
 }
