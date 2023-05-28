@@ -12,7 +12,7 @@ namespace PlayerNS
 
         public NetworkVariable<int> maxPlayerPerTeam = new NetworkVariable<int>();
         
-        public GameObject gameBoard;
+        // Declaramos obxectos para os limites do taboleiro e dos equipos
         private float[] gameBoardLimits;
         private float[] noTeamLimits;
         public float GameBoardLimitLeft { get {return gameBoardLimits[0];}}
@@ -27,6 +27,7 @@ namespace PlayerNS
         private Player p;
 
         void Awake() {
+            // Establecemos os limites do taboleiro e da franxa dos equipos
             membersTeam1 = new NetworkList<ulong>();
             membersTeam2 = new NetworkList<ulong>();
             maxPlayerPerTeam.Value = 2;
@@ -79,12 +80,17 @@ namespace PlayerNS
             }
         }
 
+        // Metodo para engadir un xogador a un equipo
         public void AddMember(int team, ulong clientId) {
 
             if (team == 1) {
 
                 if ( ! membersTeam1.Contains(clientId)) {
+
                     membersTeam1.Add(clientId);
+
+                    // Se acadamos o maximo de xogadores permitido por equipo
+                    // bloqueamos a todos os xogadores agas aos deste equipo
                     if (membersTeam1.Count >= maxPlayerPerTeam.Value) {
                         foreach (ulong id in NetworkManager.Singleton.ConnectedClientsIds) {
                             if ( ! membersTeam1.Contains(id)){
@@ -100,9 +106,15 @@ namespace PlayerNS
                         }
                     }
                 }
+
             } else if (team == 2) {
+
                 if ( ! membersTeam2.Contains(clientId)) {
+
                     membersTeam2.Add(clientId);
+
+                    // Se acadamos o maximo de xogadores permitido por equipo
+                    // bloqueamos a todos os xogadores agas aos deste equipo
                     if (membersTeam2.Count >= maxPlayerPerTeam.Value) {
                         foreach(ulong id in NetworkManager.Singleton.ConnectedClientsIds) {
                             if ( ! membersTeam2.Contains(id)){
@@ -122,10 +134,17 @@ namespace PlayerNS
 
         }
 
+        // Metodo para eliminar a un xogador dun equipo
         public void RemoveMember(int team, ulong clientId) {
+
             if (team == 1) {
+
                 membersTeam1.Remove(clientId);                
-                if (membersTeam1.Count < maxPlayerPerTeam.Value) { 
+
+                // Se baixamos do maximo de xogadores permitido por equipo
+                // desbloqueamos a todos os xogadores
+                if (membersTeam1.Count < maxPlayerPerTeam.Value) {
+
                     // Desbloqueamos todos
                     foreach(ulong id in NetworkManager.Singleton.ConnectedClientsIds) {
                             clientRpcParams = new ClientRpcParams {
@@ -140,7 +159,11 @@ namespace PlayerNS
                 }
 
             } else if (team == 2) {
-                membersTeam2.Remove(clientId);
+                
+                membersTeam2.Remove(clientId);            
+
+                // Se baixamos do maximo de xogadores permitido por equipo
+                // desbloqueamos a todos os xogadores
                 if (membersTeam2.Count < maxPlayerPerTeam.Value) {  
                     // Desbloqueamos todos 
                     foreach(ulong id in NetworkManager.Singleton.ConnectedClientsIds) {

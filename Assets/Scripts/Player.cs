@@ -77,6 +77,7 @@ namespace PlayerNS
 
         // ======================================================================================================================= ClientRPC
 
+
         [ClientRpc]
         public void CanMoveClientRpc(bool move, ClientRpcParams clientRpcParams = default) {
 
@@ -103,24 +104,34 @@ namespace PlayerNS
         [ServerRpc]
         void SubmitPositionServerRpc(float moveLeftRight, float moveBackForward, ServerRpcParams serverRpcParams = default){
 
-            Vector3 newPosition = new Vector3(transform.position.x + moveLeftRight, transform.position.y, transform.position.z + moveBackForward);
-
+            // Permitimos o movemento en horizontal (eixo X e Y)
             Rigidbody rb = GetComponent<Rigidbody>();
             rb.constraints = RigidbodyConstraints.FreezeRotation | RigidbodyConstraints.FreezePositionY;
 
+            // Calculamos a nova posicion
+            Vector3 newPosition = new Vector3(transform.position.x + moveLeftRight, transform.position.y, transform.position.z + moveBackForward);
+
+            // Comprobamos se esta dentro dos limites do taboleiro
             if (newPosition.x < playerManager.GameBoardLimitRight && newPosition.x > playerManager.GameBoardLimitLeft
               && newPosition.z < playerManager.GameBoardLimitForward && newPosition.z > playerManager.GameBoardLimitBackward ){
 
                 if (newPosition.x <= playerManager.noTeamLimitLeft) {
 
+                    // Quere moverse ao equipo 1.
+                    // Comprobamos se xa esta no equipo ou se pode incorporarse
+
                     if (team.Value == 1)  {
 
                         transform.position = newPosition;
                     } else if (playerManager.membersTeam1.Count < playerManager.maxPlayerPerTeam.Value)  {
+
                         transform.position = newPosition;
                         team.Value = 1;
                     }
                 } else if (newPosition.x >= playerManager.noTeamLimitRight) {
+
+                    // Quere moverse ao equipo 2.
+                    // Comprobamos se xa esta no equipo ou se pode incorporarse
 
                     if (team.Value == 2)  {
                         transform.position = newPosition;
@@ -130,15 +141,18 @@ namespace PlayerNS
                         team.Value = 2;
                     }
                 } else if (newPosition.x >= playerManager.noTeamLimitLeft && newPosition.x <= playerManager.noTeamLimitRight) {
+
+                    // Comprobamos se a nova posicion esta na zona centrao (sen equipo)
                     
                     transform.position = newPosition;
                     if (team.Value > 0) {
                         team.Value = 0;
                     }
                 }
-              }
+            }                
 
-              rb.constraints = RigidbodyConstraints.FreezeAll;
+            // bloqueamos todos os movementos e rotacions
+            rb.constraints = RigidbodyConstraints.FreezeAll;
         } 
 
         
