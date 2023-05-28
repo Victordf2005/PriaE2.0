@@ -29,11 +29,17 @@ namespace PlayerNS
 
         }
 
+        public override void OnNetworkSpawn() {
+            
+            if (IsOwner) {
+                base.OnNetworkSpawn();
+                team.OnValueChanged += ChangedTeam;
+            }
+        }
+        
         void Start() {
             if (IsOwner) {
-                Debug.Log(">>>>> Start 1");
                 SubmitSetInitialDataServerRpc();
-                Debug.Log(">>>>> Start 2");
             }
         }
 
@@ -53,19 +59,9 @@ namespace PlayerNS
         }
 
         public override void OnNetworkDespawn() {
-            //TODO
-            // Notificar ao server para eliminar o xogador do equipo, se o ten.
+            playerManager.RemoveMember(team.Value, clientId.Value);
         }
 
-        public override void OnNetworkSpawn() {
-            
-                Debug.Log(">>>>> Spawn 1");
-            if (IsOwner) {
-                base.OnNetworkSpawn();
-                team.OnValueChanged += ChangedTeam;
-            }
-                Debug.Log(">>>>> Spawn 2");
-        }
 
         private void ChangedTeam(int oldTeam, int newTeam) {
             ChangedTeamServerRpc(oldTeam, newTeam);
@@ -75,8 +71,6 @@ namespace PlayerNS
 
             if (canMove.Value) {
                 SubmitSetInitialDataServerRpc();
-            } else {
-                Debug.Log("Non se pode mover");
             }
 
         }
@@ -95,7 +89,6 @@ namespace PlayerNS
         [ServerRpc]
         void SubmitSetInitialDataServerRpc(ServerRpcParams serverRpcParams = default) {
             
-                Debug.Log(">>>>> SubmitSetInitialDataServerRpc 1");
             transform.position = new Vector3(Random.Range(playerManager.noTeamLimitLeft, playerManager.noTeamLimitRight), 1f, Random.Range(playerManager.GameBoardLimitLeft, playerManager.GameBoardLimitRight));            
             clientId.Value = serverRpcParams.Receive.SenderClientId;
             team.Value = 0;
@@ -105,7 +98,6 @@ namespace PlayerNS
             Rigidbody rb = GetComponent<Rigidbody>();
             rb.constraints = RigidbodyConstraints.FreezeAll;
 
-                Debug.Log(">>>>> SubmitSetInitialDataServerRpc 1");
         }
 
         [ServerRpc]
@@ -172,7 +164,6 @@ namespace PlayerNS
         void SubmitChangeMoveLockServerRpc(bool move) {
             canMove.Value = move;
         }
-
         
     }
 }
