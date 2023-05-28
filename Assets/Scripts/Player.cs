@@ -10,22 +10,16 @@ namespace PlayerNS
 
         public NetworkVariable<int> choosedColor = new NetworkVariable<int>();
         public NetworkVariable<int> team = new NetworkVariable<int>();
+        public NetworkVariable<bool> canMove = new NetworkVariable<bool>();
+        public NetworkVariable<ulong> clientId = new NetworkVariable<ulong>();
 
         public List<Material> materials = new List<Material>();
-
-        private const RigidbodyConstraints RIGIDBODY_QUIET = RigidbodyConstraints.FreezeAll;
-        private const RigidbodyConstraints RIGIDBODY_MOVING = RigidbodyConstraints.FreezeRotation | RigidbodyConstraints.FreezePositionY;
                 
         private float movingDistance = 0.5f;
-        private bool canMove = true;
-
-        private ulong clientId;
 
         private int[,] teamsMaterialsIndex;
 
         private PlayerManager playerManager;
-
-        private Rigidbody rigidBody;
 
         // ======================================================================================================================= client methods
 
@@ -37,17 +31,20 @@ namespace PlayerNS
 
         void Start() {
             if (IsOwner) {
+                Debug.Log(">>>>> Start 1");
                 SubmitSetInitialDataServerRpc();
+                Debug.Log(">>>>> Start 2");
             }
         }
 
         void Update()
         {
             if (IsOwner) {
-                if (canMove && (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.A)))   SubmitPositionServerRpc(- movingDistance, 0);
-                if (canMove && (Input.GetKeyDown(KeyCode.RightArrow) || Input.GetKeyDown(KeyCode.D)))  SubmitPositionServerRpc(movingDistance, 0);
-                if (canMove && (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.W)))     SubmitPositionServerRpc(0, movingDistance);
-                if (canMove && (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.S)))   SubmitPositionServerRpc(0, - movingDistance);
+            
+                if (canMove.Value && (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.A)))   SubmitPositionServerRpc(- movingDistance, 0);
+                if (canMove.Value && (Input.GetKeyDown(KeyCode.RightArrow) || Input.GetKeyDown(KeyCode.D)))  SubmitPositionServerRpc(movingDistance, 0);
+                if (canMove.Value && (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.W)))     SubmitPositionServerRpc(0, movingDistance);
+                if (canMove.Value && (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.S)))   SubmitPositionServerRpc(0, - movingDistance);
 
                 if (Input.GetKeyDown(KeyCode.M)) MoveToOrigin();
             }
@@ -61,33 +58,54 @@ namespace PlayerNS
         }
 
         public override void OnNetworkSpawn() {
-            base.OnNetworkSpawn();
-            team.OnValueChanged += ChangedTeamServerRpc;
-            rigidBody = GetComponent<Rigidbody>();
+            
+                Debug.Log(">>>>> Spawn 1");
+            if (IsOwner) {
+                base.OnNetworkSpawn();
+                team.OnValueChanged += ChangedTeam;
+            }
+                Debug.Log(">>>>> Spawn 2");
+        }
+
+        private void ChangedTeam(int oldTeam, int newTeam) {
+            ChangedTeamServerRpc(oldTeam, newTeam);
         }
 
         public void MoveToOrigin() {
-            if (canMove) {
+
+            if (canMove.Value) {
                 SubmitSetInitialDataServerRpc();
             } else {
                 Debug.Log("Non se pode mover");
             }
+
         }
 
         // ======================================================================================================================= ClientRPC
 
         [ClientRpc]
         public void CanMoveClientRpc(bool move, ClientRpcParams clientRpcParams = default) {
-            canMove = move;
+
+            SubmitChangeMoveLockServerRpc(move);
+
         }
 
         // ======================================================================================================================= ServerRPC
 
         [ServerRpc]
         void SubmitSetInitialDataServerRpc(ServerRpcParams serverRpcParams = default) {
+            
+                Debug.Log(">>>>> SubmitSetInitialDataServerRpc 1");
             transform.position = new Vector3(Random.Range(playerManager.noTeamLimitLeft, playerManager.noTeamLimitRight), 1f, Random.Range(playerManager.GameBoardLimitLeft, playerManager.GameBoardLimitRight));            
-            clientId = serverRpcParams.Receive.SenderClientId;
+            clientId.Value = serverRpcParams.Receive.SenderClientId;
             team.Value = 0;
+
+            canMove.Value = (playerManager.membersTeam1.Count < playerManager.maxPlayerPerTeam.Value && playerManager.membersTeam2.Count < playerManager.maxPlayerPerTeam.Value);
+
+            Rigidbody rb = GetComponent<Rigidbody>();
+            rb.constraints = RigidbodyConstraints.FreezeAll;
+
+                Debug.Log(">>>>> SubmitSetInitialDataServerRpc 1");
         }
 
         [ServerRpc]
@@ -95,12 +113,11 @@ namespace PlayerNS
 
             Vector3 newPosition = new Vector3(transform.position.x + moveLeftRight, transform.position.y, transform.position.z + moveBackForward);
 
-            rigidBody.constraints = RIGIDBODY_MOVING;
+            Rigidbody rb = GetComponent<Rigidbody>();
+            rb.constraints = RigidbodyConstraints.FreezeRotation | RigidbodyConstraints.FreezePositionY;
 
             if (newPosition.x < playerManager.GameBoardLimitRight && newPosition.x > playerManager.GameBoardLimitLeft
               && newPosition.z < playerManager.GameBoardLimitForward && newPosition.z > playerManager.GameBoardLimitBackward ){
-
-                clientId = serverRpcParams.Receive.SenderClientId;
 
                 if (newPosition.x <= playerManager.noTeamLimitLeft) {
 
@@ -129,7 +146,7 @@ namespace PlayerNS
                 }
               }
 
-              rigidBody.constraints = RIGIDBODY_QUIET;
+              rb.constraints = RigidbodyConstraints.FreezeAll;
         } 
 
         
@@ -143,21 +160,19 @@ namespace PlayerNS
         [ServerRpc]
         void ChangedTeamServerRpc(int oldTeam, int newTeam) {
 
-Debug.Log($">>>>>>>> {oldTeam} -> {newTeam}");
+            if (oldTeam > 0) playerManager.RemoveMember(oldTeam, clientId.Value);
 
-            if (oldTeam > 0) playerManager.RemoveMember(oldTeam, clientId);
-
-            if (newTeam > 0) playerManager.AddMember(newTeam, clientId);
+            if (newTeam > 0) playerManager.AddMember(newTeam, clientId.Value);
 
             choosedColor.Value = Random.Range(teamsMaterialsIndex[newTeam,0], teamsMaterialsIndex[newTeam,1]);
 
         }
 
         [ServerRpc]
-        void ChangedPositionServerRpc(Vector3 oldPosition, Vector3 newPosition) {
-            Debug.Log(">>>>>>>>>>>> posicion cambiada");
+        void SubmitChangeMoveLockServerRpc(bool move) {
+            canMove.Value = move;
         }
-        
+
         
     }
 }

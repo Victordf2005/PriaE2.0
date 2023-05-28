@@ -139,6 +139,7 @@ Debug.Log(">>>> Membros: " + membersTeam1.Count + " - " + membersTeam2.Count);
                                 // chamada a clientRpc
                             p = NetworkManager.Singleton.ConnectedClientsList[(int) id].PlayerObject.GetComponent<Player>();
                             p.CanMoveClientRpc(true, clientRpcParams);
+                            Debug.Log($">>> RemoveMember {id} {true}");
                     }
                 }
 
