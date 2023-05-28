@@ -12,6 +12,16 @@ namespace PlayerNS
 
         public NetworkVariable<int> maxPlayerPerTeam = new NetworkVariable<int>();
         
+        public GameObject gameBoard;
+        private float[] gameBoardLimits;
+        private float[] noTeamLimits;
+        public float GameBoardLimitLeft { get {return gameBoardLimits[0];}}
+        public float GameBoardLimitRight { get {return gameBoardLimits[1];}}
+        public float GameBoardLimitBackward { get {return gameBoardLimits[2];}}
+        public float GameBoardLimitForward { get {return gameBoardLimits[3];}}
+        public float noTeamLimitLeft {get {return noTeamLimits[0];}}
+        public float noTeamLimitRight {get {return noTeamLimits[1];}}
+        
         private ClientRpcParams clientRpcParams;
         
         private Player p;
@@ -20,6 +30,8 @@ namespace PlayerNS
             membersTeam1 = new NetworkList<ulong>();
             membersTeam2 = new NetworkList<ulong>();
             maxPlayerPerTeam.Value = 2;
+            gameBoardLimits = new float[] {-9, 9, -9, 9};
+            noTeamLimits = new float[] {-3, 3};
         }
         
 

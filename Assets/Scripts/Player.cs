@@ -12,9 +12,11 @@ namespace PlayerNS
         public NetworkVariable<int> team = new NetworkVariable<int>();
 
         public List<Material> materials = new List<Material>();
-        
+                
         private float movingDistance = 0.5f;
         private bool canMove = true;
+
+        private int[,] teamsMaterialsIndex;
 
         private PlayerManager playerManager;
 
@@ -22,13 +24,13 @@ namespace PlayerNS
 
         void Awake() {
             playerManager = GameObject.Find("PlayerManager").GetComponent<PlayerManager>();
+            teamsMaterialsIndex = new int[,] {{0, 0}, {1, 3}, {4, 6}};
 
         }
 
         void Start() {
             if (IsOwner) {
                 SubmitInitialPositionRequestServerRpc();
-                SubmitSetDefaultValuesServerRpc();
             }
         }
 
@@ -71,12 +73,12 @@ namespace PlayerNS
         [ServerRpc]
         void SubmitSetDefaultValuesServerRpc() {
             team.Value = 0;
+            SubmitChangeColorServerRpc(team.Value);
         }
 
         [ServerRpc]
         void SubmitInitialPositionRequestServerRpc() {
-            transform.position = new Vector3(Random.Range(-3f, 3f), 1f, Random.Range(-9f, 9f));
-            team.Value = 0;
+            transform.position = new Vector3(Random.Range(playerManager.noTeamLimitLeft, playerManager.noTeamLimitRight), 1f, Random.Range(playerManager.GameBoardLimitLeft, playerManager.GameBoardLimitRight));
         }
 
         [ServerRpc]
@@ -84,12 +86,12 @@ namespace PlayerNS
 
             Vector3 newPosition = new Vector3(transform.position.x + moveLeftRight, transform.position.y, transform.position.z + moveBackForward);
 
-            if (newPosition.x < 9f && newPosition.x >-9f && newPosition.z < 9f && newPosition.z > -9f ){
+            if (newPosition.x < playerManager.GameBoardLimitRight && newPosition.x > playerManager.GameBoardLimitLeft
+              && newPosition.z < playerManager.GameBoardLimitForward && newPosition.z > playerManager.GameBoardLimitBackward ){
 
             var clientId = serverRpcParams.Receive.SenderClientId;
 
-
-                if (newPosition.x <= -3f) {
+                if (newPosition.x <= playerManager.noTeamLimitLeft) {
 
                     if (team.Value == 1)  {
 
@@ -100,7 +102,8 @@ namespace PlayerNS
                         playerManager.AddMember(team.Value, clientId);
                         SubmitChangeColorServerRpc(team.Value);
                     }
-                } else if (newPosition.x >= 3f) {
+                } else if (newPosition.x >= playerManager.noTeamLimitRight) {
+
                     if (team.Value == 2)  {
                         transform.position = newPosition;
                     } else if (playerManager.membersTeam2.Count < playerManager.maxPlayerPerTeam.Value)  {
@@ -110,7 +113,7 @@ namespace PlayerNS
                         playerManager.AddMember(team.Value, clientId);
                         SubmitChangeColorServerRpc(team.Value);
                     }
-                } else if (newPosition.x >= -3f && newPosition.x <= 3f) {
+                } else if (newPosition.x >= playerManager.noTeamLimitLeft && newPosition.x <= playerManager.noTeamLimitRight) {
                     
                     transform.position = newPosition;
                     if (team.Value > 0) {
@@ -120,25 +123,15 @@ namespace PlayerNS
                         SubmitChangeColorServerRpc(team.Value);
                     }
                 }
-            }
-        }
+              }
+        } 
 
         
         [ServerRpc]
         void SubmitChangeColorServerRpc(int team){
 
-Debug.Log(">>>>> Cambia cor");
-            switch (team) {
-                case 1:
-                    choosedColor.Value = Random.Range(1, 3);
-                    break;
-                case 2:                
-                    choosedColor.Value = Random.Range(4, 6);
-                    break;
-                default:
-                    choosedColor.Value = 0;
-                    break;
-            }
+            choosedColor.Value = Random.Range(teamsMaterialsIndex[team,0], teamsMaterialsIndex[team,1]);
+
         }
         
         
