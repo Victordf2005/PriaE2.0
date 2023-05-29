@@ -158,8 +158,9 @@ namespace PlayerNS
         
         [ServerRpc]
         void SubmitChangeColorServerRpc(int team){
-
-            choosedColor.Value = Random.Range(teamsMaterialsIndex[team,0], teamsMaterialsIndex[team,1]);
+            // Random.Range entre enteiros non ten en conta o limite superior;
+            // por iso sumamos 1 a teamsMaterialsIndex[team,1]
+            choosedColor.Value = Random.Range(teamsMaterialsIndex[team,0], teamsMaterialsIndex[team,1] + 1);
 
         }
 
@@ -170,7 +171,7 @@ namespace PlayerNS
 
             if (newTeam > 0) playerManager.AddMember(newTeam, clientId.Value);
 
-            choosedColor.Value = Random.Range(teamsMaterialsIndex[newTeam,0], teamsMaterialsIndex[newTeam,1]);
+            SubmitChangeColorServerRpc(newTeam);
 
         }
 
